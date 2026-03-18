@@ -1,0 +1,26 @@
+{
+  "name": "scholarshipweb",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jardinsys/ScholarshipWeb.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jardinsys/ScholarshipWeb/issues"
+  },
+  "homepage": "https://github.com/jardinsys/ScholarshipWeb#readme",
+  "dependencies": {
+    "core-js": "^3.49.0",
+    "mongodb": "^7.1.0",
+    "snowflake-id": "^1.1.0"
+  }
+}
