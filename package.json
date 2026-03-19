@@ -21,6 +21,10 @@
   "dependencies": {
     "core-js": "^3.49.0",
     "mongodb": "^7.1.0",
+    "node": "^25.8.1",
     "snowflake-id": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0"
   }
 }
