@@ -1,11 +1,12 @@
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 from pymongo import MongoClient
+from ml.ml_pipeline import process_raw_document
 
+# MongoDB setup
 client = MongoClient("mongodb://mongo:27017")
 db = client["scholarship_crawler"]
-raw = db["raw_results"]
-
+raw_collection = db["raw_results"]
 
 
 def scrape_page(url: str) -> dict:
@@ -30,5 +31,16 @@ def scrape_page(url: str) -> dict:
 
 if __name__ == "__main__":
     test_url = "https://example.com"
-    result = scrape_page(test_url)
-    print(result)
+    data = scrape_page(test_url)
+
+    # Insert raw data
+    raw_id = raw_collection.insert_one(data).inserted_id
+
+    # Fetch raw doc
+    doc = raw_collection.find_one({"_id": raw_id})
+
+    # Run ML pipeline immediately
+    cleaned = process_raw_document(doc)
+
+    print("ML pipeline output:")
+    print(cleaned)

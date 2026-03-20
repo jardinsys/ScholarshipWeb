@@ -2,10 +2,10 @@ services:
   crawler:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.crawler
+    container_name: crawler
     depends_on:
       - mongo
-    container_name: crawler
     volumes:
       - .:/app
 

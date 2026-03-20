@@ -1,6 +1,6 @@
 FROM python:3.10-slim
 
-# Install system dependencies for Playwright
+# System dependencies for Playwright + ML
 RUN apt-get update && apt-get install -y \
     wget \
     libnss3 \
@@ -19,10 +19,22 @@ RUN apt-get update && apt-get install -y \
     libatspi2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install playwright pymongo
+# Python dependencies
+RUN pip install --no-cache-dir \
+    playwright \
+    transformers \
+    sentence-transformers \
+    torch \
+    accelerate \
+    protobuf \
+    pymongo
+
+# Install Chromium for Playwright
 RUN playwright install --with-deps chromium
 
 WORKDIR /app
+
+# Copy entire project
 COPY . .
 
-CMD ["python", "scrape_example.py"]
+CMD ["python", "crawler/scrape_example.py"]
