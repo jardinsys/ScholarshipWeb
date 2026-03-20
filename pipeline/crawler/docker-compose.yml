@@ -1,0 +1,16 @@
+services:
+  crawler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - mongo
+    container_name: crawler
+    volumes:
+      - .:/app
+
+  mongo:
+    image: mongo:latest
+    container_name: crawler-mongo
+    ports:
+      - "27017:27017"
