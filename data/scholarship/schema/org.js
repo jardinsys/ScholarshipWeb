@@ -15,7 +15,7 @@ const orgSchema = new mongoose.Schema({
     url: String,
     tags: [{
         tag_type: Tag,
-        tag_value: String
+        tag_value: mongoose.Schema.Types.Mixed
     }],
     description: String
 })

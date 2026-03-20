@@ -5,8 +5,8 @@ const tagSchema = new mongoose.Schema({
     _id: { type: mongoose.Schema.Types.ObjectId, unique: true},
     name: {type: String, required: true},
     description: {type: String, required: true},
-    options: [Mixed]
+    options: [String]
 })
 
-const Tag = scholarDBDB.model('Tag', tagSchema);
+const Tag = scholarDB.model('Tag', tagSchema);
 module.exports = Tag;

@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
     username: String,
     tags: [{
         tag_type: Tag,
-        tag_value: String
+        tag_value: mongoose.Schema.Types.Mixed
     }],
     bio: String,
     join_date: Date
