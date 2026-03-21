@@ -27,7 +27,9 @@ RUN pip install --no-cache-dir \
     torch \
     accelerate \
     protobuf \
-    pymongo
+    pymongo \
+    redis \
+    schedule
 
 # Install Chromium for Playwright
 RUN playwright install --with-deps chromium

@@ -6,11 +6,49 @@ services:
     container_name: crawler
     depends_on:
       - mongo
+      - redis
     volumes:
       - .:/app
+    environment:
+      - PYTHONPATH=/app
+
+  aggregator:
+    build:
+      context: .
+      dockerfile: Dockerfile.crawler
+    container_name: aggregator
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+    command: ["python", "crawler/aggregator.py"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.crawler
+    container_name: worker
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+#    command: ["python", "crawler/worker.py"]
+    command: ["python", "crawler/test_worker.py"]
 
   mongo:
     image: mongo:latest
     container_name: crawler-mongo
     ports:
       - "27017:27017"
+
+  redis:
+    image: redis:latest
+    container_name: crawler-redis
+    ports:
+      - "6379:6379"
