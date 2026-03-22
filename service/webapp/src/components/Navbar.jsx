@@ -14,7 +14,7 @@ export function Navbar() {
       <nav className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
         {/* Wordmark */}
         <Link to="/" className="font-display text-lg font-bold tracking-tight text-ink">
-          Scholar<span className="text-moss">Match</span>
+          Scholarship<span className="text-moss"><i>Web</i></span>
         </Link>
 
         {/* Links */}
