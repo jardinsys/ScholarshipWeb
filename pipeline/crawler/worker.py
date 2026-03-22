@@ -1,6 +1,6 @@
 import time
 from datetime import datetime
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urldefrag, urlparse, urljoin
 from playwright.sync_api import sync_playwright
 from ml.ml_pipeline import process_raw_document
 from crawler.redis_queue import (
@@ -42,16 +42,19 @@ def extract_links(page, base_url: str) -> list[str]:
 
 
 # Single page crawl
+from urllib.parse import urlparse, urljoin, urldefrag
+
 def crawl_page(url: str, depth: int, page):
-    """
-    Scrape a page, run ML pipeline, and sort its links into queues.
-    - If ML detects a scholarship → save to MongoDB
-    - If link is on a known aggregator → push to aggregator queue
-    - Otherwise → push to crawler queue
-    """
-    if is_visited(url):
+    # Strip URL fragments (#section) — they're the same page
+    url, _ = urldefrag(url)
+    
+    # Skip non-HTML files
+    if url.endswith((".pdf", ".zip", ".docx", ".png", ".jpg", ".jpeg")):
+        print(f"[worker] Skipping non-HTML file: {url}")
         return
 
+    if is_visited(url):
+        return
     print(f"[worker] Crawling ({depth}): {url}")
 
     try:
