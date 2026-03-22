@@ -12,8 +12,8 @@ const scholarshipSchema = new mongoose.Schema({
     provider: String, 
     url: String,
     tags: [{
-        tag_type: Tag,
-        tag_value: mongoose.Schema.Types.Mixed
+        tag_type: { type: mongoose.Schema.Types.ObjectId, ref: 'Tag', required: true },
+        tag_value: { type: mongoose.Schema.Types.Mixed, required: true }
     }],
     essay_required: Boolean,
     date: {
