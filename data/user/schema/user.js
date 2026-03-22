@@ -18,5 +18,5 @@ const userSchema = new mongoose.Schema({
     join_date: Date
 })
 
-const User = scholarDBDB.model('User', userSchema);
+const User = scholarDB.model('User', userSchema);
 module.exports = User;

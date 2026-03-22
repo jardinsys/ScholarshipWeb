@@ -14,7 +14,7 @@ summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Tag creation (generative)
-generator = pipeline("text2text-generation", model="google/flan-t5-small")
+generator = pipeline("text2text-generation", model="google/flan-t5-large")
 
 
 # MongoDB setup 
@@ -37,7 +37,7 @@ def verify_scholarship(text: str) -> bool:
     top_label = result["labels"][0]
     score = result["scores"][0]
 
-    return top_label == "scholarship" and score >= 0.82
+    return top_label == "scholarship" and score >= 0.85
 
 
 # Summarization
@@ -53,49 +53,56 @@ def generate_summary(text: str) -> str:
 
 # Extract tag value from text  
 def extract_tag_value(summary: str, tag_name: str) -> str:
-    # Given an existing tag type name (e.g. "race"), extract the specific value from the scholarship summary (e.g. "black", "hispanic").
     prompt = (
-        f"This scholarship summary describes eligible students.\n\n"
-        f"Summary: {summary}\n\n"
-        f"What is the specific value for the attribute '{tag_name}'? "
-        f"Reply with only 1-3 words, nothing else."
+        f"What is the specific value for '{tag_name}' in this scholarship? "
+        f"Reply with only 1-3 words.\n\n"
+        f"Scholarship: {summary[:300]}"
     )
-    result = generator(prompt, max_new_tokens=10)[0]["generated_text"]
-    return result.strip().lower()
+    result = generator(prompt, max_new_tokens=8)[0]["generated_text"].strip().lower()
+    result = result.split("\n")[-1].strip()
+
+    if not result or len(result) > 30: return "any"
+    return result
  
  
 # Create new tag type and extract value 
-def create_tag_with_value(summary: str) -> dict:
-    # When no existing tag type matches, create a new tag type AND extract its value.
-    # Returns {"tag_type": tag_doc, "tag_value": str}
-    prompt = (
-        "Based on this scholarship summary, identify one eligibility attribute.\n\n"
-        f"Summary: {summary}\n\n"
-        "Respond in this exact format:\n"
-        "TYPE: <1-2 word attribute name, e.g. 'race', 'major', 'state', 'gpa'>\n"
-        "VALUE: <specific value from the summary, e.g. 'black', 'engineering', 'ohio'>\n"
-        "DESC: <one sentence explaining what this attribute means for matching>"
+def create_tag_with_value(summary: str, hint: str ="") -> dict:
+    # Ask for type and value in two separate calls — more reliable for small models
+    type_prompt = (
+        f"{hint}\n\n" if hint else ""
+    ) + (
+        f"What is one eligibility requirement category for this scholarship? "
+        f"Reply with only 1-2 words like 'race', 'major', 'state', 'gpa', 'religion', 'gender'.\n\n"
+        f"Scholarship: {summary[:300]}"
     )
-    result = generator(prompt, max_new_tokens=80)[0]["generated_text"]
- 
-    # Parse with fallbacks
-    tag_name = "general"
-    tag_value = "any"
-    tag_desc = summary[:100]
- 
-    for line in result.split("\n"):
-        if line.startswith("TYPE:"):
-            tag_name = line.replace("TYPE:", "").strip().lower()
-        elif line.startswith("VALUE:"):
-            tag_value = line.replace("VALUE:", "").strip().lower()
-        elif line.startswith("DESC:"):
-            tag_desc = line.replace("DESC:", "").strip()
- 
-    # Reuse existing tag type if name matches
+    tag_name = generator(type_prompt, max_new_tokens=8)[0]["generated_text"].strip().lower()
+    tag_name = tag_name.split("\n")[-1].strip()
+
+    value_prompt = (
+        f"What is the specific value for '{tag_name}' in this scholarship? "
+        f"Reply with only 1-3 words.\n\n"
+        f"Scholarship: {summary[:300]}"
+    )
+    tag_value = generator(value_prompt, max_new_tokens=8)[0]["generated_text"].strip().lower()
+    tag_value = tag_value.split("\n")[-1].strip()
+
+    desc_prompt = (
+        f"In one sentence, describe what '{tag_name}' means as a scholarship eligibility filter."
+    )
+    tag_desc = generator(desc_prompt, max_new_tokens=30)[0]["generated_text"].strip()
+    tag_desc = tag_desc.split("\n")[-1].strip()
+
+    if not tag_name or len(tag_name) > 20:
+        tag_name = "eligibility"
+    if not tag_value or len(tag_value) > 30:
+        tag_value = "see description"
+    if not tag_desc:
+        tag_desc = f"Eligibility requirement: {tag_name}"
+
     existing = tag_collection.find_one({"name": tag_name})
     if existing:
         return {"tag_type": existing, "tag_value": tag_value}
- 
+
     tag_doc = {
         "_id": ObjectId(),
         "name": tag_name,
@@ -105,9 +112,8 @@ def create_tag_with_value(summary: str) -> dict:
     tag_collection.insert_one(tag_doc)
     return {"tag_type": tag_doc, "tag_value": tag_value}
  
- 
 # Multi-tag assignment 
-def assign_tags(summary: str, target_count: int = 4) -> list:
+def assign_tags(summary: str, target_count: int = 5) -> list:
     # Assign tags to a scholarship.
     ## - If an existing tag type matches → reuse it, extract the value
     ## - If no match → create new tag type and extract value
@@ -116,38 +122,55 @@ def assign_tags(summary: str, target_count: int = 4) -> list:
     existing_tags = list(tag_collection.find({}))
     assigned = []
     used_type_ids = set()
- 
-    # Try to match existing tag types
+
+    # Step 1: Match existing tag types
     if existing_tags:
         tag_descriptions = [t["description"] for t in existing_tags]
         tag_vectors = embedder.encode(tag_descriptions)
         summary_vec = embedder.encode(summary)
         scores = util.cos_sim(summary_vec, tag_vectors)[0]
- 
-        # Collect matches above threshold sorted by score
+
         matches = sorted(
             [(existing_tags[i], float(scores[i])) for i in range(len(existing_tags))
              if float(scores[i]) >= 0.50],
             key=lambda x: x[1],
             reverse=True
         )
- 
+
         for tag, score in matches[:target_count]:
             if tag["_id"] not in used_type_ids:
                 value = extract_tag_value(summary, tag["name"])
                 assigned.append({"tag_type": tag["_id"], "tag_value": value})
                 used_type_ids.add(tag["_id"])
- 
-    # Create new tags to reach target count
+
+    # Step 2: Keep creating new tags until we hit target_count
+    # Use different prompt angles to get variety
+    angles = [
+        "Who is eligible based on race, ethnicity, or background?",
+        "What field of study or major is required?",
+        "What state, region, or location is required?",
+        "What GPA, grade level, or academic requirement is needed?",
+        "What other eligibility requirement exists (gender, religion, disability, income)?",
+        "What career or industry is this scholarship for?",
+    ]
+
+    angle_index = 0
+    max_attempts = target_count * 3  # allow extra attempts to avoid infinite loop
     attempts = 0
-    while len(assigned) < target_count and attempts < target_count:
-        result = create_tag_with_value(summary)
+
+    while len(assigned) < target_count and attempts < max_attempts:
+        # Pick a different angle each attempt to get variety
+        angle = angles[angle_index % len(angles)]
+        angle_index += 1
+        attempts += 1
+
+        result = create_tag_with_value(summary, hint=angle)
         type_id = result["tag_type"]["_id"]
+
         if type_id not in used_type_ids:
             assigned.append({"tag_type": type_id, "tag_value": result["tag_value"]})
             used_type_ids.add(type_id)
-        attempts += 1
- 
+
     return assigned
  
  

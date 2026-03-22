@@ -34,6 +34,8 @@ RUN pip install --no-cache-dir \
 # Install Chromium for Playwright
 RUN playwright install --with-deps chromium
 
+RUN echo "vm.overcommit_memory = 1" >> /etc/sysctl.conf
+
 WORKDIR /app
 
 ENV PYTHONPATH=/app

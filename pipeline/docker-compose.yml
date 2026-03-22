@@ -33,6 +33,7 @@ services:
       context: .
       dockerfile: Dockerfile.crawler
     container_name: worker
+    shm_size: '4gb'
     depends_on:
       - mongo
       - redis
