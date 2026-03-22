@@ -1,0 +1,32 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: service/Dockerfile.api
+    container_name: scholarship-api
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGO_URI=mongodb://crawler-mongo:27017/scholarshipdb
+      - PORT=3001
+    networks:
+      - scholarship-net
+    depends_on:
+      - frontend
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: service/Dockerfile.frontend
+    container_name: scholarship-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://api:3001
+    networks:
+      - scholarship-net
+
+networks:
+  scholarship-net:
+    external: true
+    name: scholarship-net

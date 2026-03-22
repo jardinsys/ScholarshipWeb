@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const scholarDB = require("../../database"); //fix location later
 
 const tagSchema = new mongoose.Schema({
     _id: { type: mongoose.Schema.Types.ObjectId, unique: true},
@@ -8,5 +7,5 @@ const tagSchema = new mongoose.Schema({
     data_type: {type: String, enum: ["String","Number"], default: "String"},
 })
 
-const Tag = scholarDB.model('Tag', tagSchema);
+const Tag = mongoose.model('Tag', tagSchema);
 module.exports = Tag;

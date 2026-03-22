@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const scholarDB = require("../../database"); //fix location later
 const Snowflake = require('snowflake-id').default;
 const snowflake = new Snowflake({
     mid: 1,  // Machine ID
@@ -19,5 +18,5 @@ const userSchema = new mongoose.Schema({
     saved_scholarships: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Scholarship' }]
 })
 
-const User = scholarDB.model('User', userSchema);
+const User = mongoose.model('User', userSchema);
 module.exports = User;

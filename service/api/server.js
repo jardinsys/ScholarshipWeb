@@ -1,7 +1,7 @@
 require('dotenv').config()
 const express = require('express')
 const cors    = require('cors')
-const connect = require('./db')
+const { connect } = require('../../data/database')
 
 const app = express()
 
@@ -16,7 +16,7 @@ app.use('/api/tags',         require('./routes/tags'))
 // Health check
 app.get('/api/health', (_, res) => res.json({ ok: true }))
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3001
 
 connect().then(() => {
   app.listen(PORT, () => console.log(`[api] Running on http://localhost:${PORT}`))
