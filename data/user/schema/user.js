@@ -15,7 +15,8 @@ const userSchema = new mongoose.Schema({
         tag_value: { type: mongoose.Schema.Types.Mixed, required: true }
     }],
     bio: String,
-    join_date: Date
+    join_date: { type: Date, default: Date.now },
+    saved_scholarships: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Scholarship' }]
 })
 
 const User = scholarDB.model('User', userSchema);
