@@ -16,6 +16,7 @@ embedder = SentenceTransformer("all-MiniLM-L6-v2")
 # Tag creation (generative)
 generator = pipeline("text2text-generation", model="google/flan-t5-large")
 
+print("[ml] Models loaded successfully")
 
 # MongoDB setup 
 client = MongoClient("mongodb://mongo:27017")
