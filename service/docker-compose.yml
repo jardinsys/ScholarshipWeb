@@ -7,7 +7,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - MONGO_URI=mongodb://crawler-mongo:27017/scholarshipdb
+      - MONGO_URI=mongodb://mongo:27017/scholarshipdb
       - PORT=3001
     networks:
       - scholarship-net

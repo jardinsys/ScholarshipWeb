@@ -78,7 +78,7 @@ function ScholarshipCard({ s, style, onSave }) {
   )
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({ user, onAuth }) {
   const [activeNav, setActiveNav] = useState('feed')
   const [activeFilters, setActiveFilters] = useState(new Set())
   const [searchQuery, setSearchQuery] = useState('')
@@ -116,7 +116,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <AuthModal open={modal.open} onClose={closeModal} reason={modal.reason} />
+      <AuthModal open={modal.open} onClose={closeModal} onAuth={onAuth} reason={modal.reason} />
 
       <div className="mx-auto flex max-w-5xl gap-6 px-6 py-8">
 
@@ -184,8 +184,8 @@ export default function DashboardPage() {
                 <span className="text-3xl">🕷️</span>
                 <p className="font-display font-semibold text-ink">No scholarships to show right now</p>
                 <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-                  This prototype includes a live web crawler — it may take some time for scholarships to be discovered, processed, and verified before they appear here. 
-                  If this were the active product, a seperate server web crawling would remain live, while users can log into the system, and many scholarships would already be available to see. 
+                  This prototype includes a live web crawler, so it may take a couple minutes for for scholarships to be discovered, processed, and verified before they appear here. 
+                  If this were the active/final product, a seperate server's web crawling would remain live, while users can log into the system, and many scholarships would already be available to see. Sit tight!
                 </p>
               </div>
             )}

@@ -105,17 +105,17 @@ def run_aggregator():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
-        # Seed each known aggregator site as the starting point
         for site in sites:
             push_aggregator(site, depth=0)
 
-        # Drain the aggregator queue
         while True:
             item = pop_aggregator()
             if item is None:
                 break
             url, depth = item
             crawl_page(url, depth, page)
+            
+            time.sleep(.2)  # wait 2 seconds between pages
 
         browser.close()
 

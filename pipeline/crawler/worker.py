@@ -13,6 +13,7 @@ from crawler.redis_queue import (
     queue_stats
 )
 from pymongo import MongoClient
+from urllib.parse import urlparse, urljoin, urldefrag
 
 SLEEP_SECONDS = 10  # Wait time when queue is empty before checking again
 
@@ -40,10 +41,7 @@ def extract_links(page, base_url: str) -> list[str]:
             continue
     return valid
 
-
 # Single page crawl
-from urllib.parse import urlparse, urljoin, urldefrag
-
 def crawl_page(url: str, depth: int, page):
     # Strip URL fragments (#section) — they're the same page
     url, _ = urldefrag(url)
@@ -55,6 +53,7 @@ def crawl_page(url: str, depth: int, page):
 
     if is_visited(url):
         return
+    
     print(f"[worker] Crawling ({depth}): {url}")
 
     try:

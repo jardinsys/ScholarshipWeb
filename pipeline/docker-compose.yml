@@ -1,19 +1,5 @@
 services:
-  crawler:
-    build:
-      context: .
-      dockerfile: Dockerfile.crawler
-    container_name: crawler
-    depends_on:
-      - mongo
-      - redis
-    volumes:
-      - .:/app
-    environment:
-      - PYTHONPATH=/app
-      - MONGO_URI=mongodb://crawler-mongo:27017/scholarshipdb
-    networks:
-      - scholarship-net
+  
 
   aggregator:
     build:
@@ -38,6 +24,8 @@ services:
       dockerfile: Dockerfile.crawler
     container_name: worker
     shm_size: '4gb'
+    mem_limit: 16g
+    memswap_limit: 16g
     depends_on:
       - mongo
       - redis
@@ -46,14 +34,14 @@ services:
     environment:
       - PYTHONPATH=/app
       - MONGO_URI=mongodb://crawler-mongo:27017/scholarship_crawler
-#    command: ["python", "crawler/worker.py"]
-    command: ["python", "crawler/test_worker.py"]
+    command: ["python", "crawler/worker.py"]
+#    command: ["python", "crawler/test_worker.py"]
     networks:
       - scholarship-net
 
   mongo:
     image: mongo:latest
-    container_name: crawler-mongo
+    container_name: mongo
     ports:
       - "27017:27017"
     networks:
@@ -61,7 +49,7 @@ services:
 
   redis:
     image: redis:latest
-    container_name: crawler-redis
+    container_name: redis
     ports:
       - "6379:6379"
     networks:
