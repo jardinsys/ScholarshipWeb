@@ -19,7 +19,7 @@ raw_collection   = db["raw_results"]
 clean_collection = db["scholarships"]
 tag_collection   = db["tags"]
 
-BLACKLISTED_TAG_NAMES = {"eligibility", "scholarship", "award", "application", "details"}
+BLACKLISTED_TAG_NAMES = {"eligibility", "scholarship", "award", "application", "details","."}
 
 def _classify_scholarship(text: str, threshold: float = 0.65) -> bool:
     """Aggregates scores across multiple positive labels for better recall."""
