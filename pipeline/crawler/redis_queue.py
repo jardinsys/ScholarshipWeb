@@ -9,11 +9,11 @@ r = redis.Redis(host="redis", port=6379, decode_responses=True)
 # Aggregator Sites 
 def add_aggregator_site(url: str):
     """Add a site to the known aggregator set."""
-    r.sadd("aggregator:sites", url)
+    r.rpush("aggregator:sites", url)
 
 def get_aggregator_sites() -> set:
     """Get all known aggregator sites."""
-    return r.smembers("aggregator:sites")
+    return r.lrange("aggregator:sites", 0, -1)
 
 def is_aggregator_site(url: str) -> bool:
     """Check if a URL's domain matches a known aggregator site."""

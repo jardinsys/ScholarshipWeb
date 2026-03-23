@@ -1,13 +1,12 @@
 """
-search_crawler.py — Bing-based active search crawler
+search_crawler.py — DuckDuckGo-based active search crawler
 
-Searches Bing for scholarship-related queries and feeds discovered URLs
+Searches DDG for scholarship-related queries and feeds discovered URLs
 into the existing worker queue for the ML pipeline to process.
 
 Query sources:
   1. Static seed queries  — broad terms always worth searching
   2. Dynamic queries      — built from tag names + values already in MongoDB
-                            e.g. tag "major: computer science" → "computer science scholarship"
 
 Runs once on startup, then every 12 hours.
 """
@@ -40,25 +39,20 @@ scholarship_collection = db["scholarships"]
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-# Realistic browser user agent — reduces chance of Bing serving a bot page
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/122.0.0.0 Safari/537.36"
 )
 
-# Domains to skip — search engines, social media, irrelevant noise
 SKIP_DOMAINS = {
     "bing.com", "google.com", "facebook.com", "twitter.com", "x.com",
     "instagram.com", "youtube.com", "linkedin.com", "reddit.com",
     "wikipedia.org", "amazon.com", "ebay.com", "pinterest.com",
     "tiktok.com", "snapchat.com", "microsoft.com", "apple.com",
+    "duckduckgo.com",
 }
 
-# How many Bing result pages to paginate per query (each = ~10 results)
-PAGES_PER_QUERY = 3
-
-# Polite delay range between requests (seconds) — randomised to look human
 DELAY_MIN = 1.5
 DELAY_MAX = 3.5
 
@@ -97,19 +91,9 @@ STATIC_QUERIES = [
     "data science scholarship",
 ]
 
-
 # ─── Dynamic query builder ────────────────────────────────────────────────────
 
 def build_dynamic_queries() -> list[str]:
-    """
-    Build search queries from tag names and scholarship tag values in MongoDB.
-
-    Strategy:
-      - Tag names   → "{tag_name} scholarship"
-                      e.g. "major scholarship", "state scholarship"
-      - Tag values  → "{tag_value} scholarship"
-                      e.g. "computer science scholarship", "california scholarship"
-    """
     queries = []
     seen    = set()
 
@@ -120,13 +104,11 @@ def build_dynamic_queries() -> list[str]:
             queries.append(q)
 
     try:
-        # From tag type names
         for tag in tag_collection.find({}):
             name = tag.get("name", "").strip()
             if name:
                 add(f"{name} scholarship")
 
-        # From distinct tag values across all scholarships
         pipeline = [
             {"$unwind": "$tags"},
             {"$group": {"_id": "$tags.tag_value"}},
@@ -134,7 +116,7 @@ def build_dynamic_queries() -> list[str]:
         ]
         for doc in scholarship_collection.aggregate(pipeline):
             val = str(doc.get("_id", "")).strip()
-            if val and val.lower() != "any" and len(val) > 2:
+            if val and val.lower() not in ("any", "unspecified") and len(val) > 2:
                 add(f"{val} scholarship")
 
     except Exception as e:
@@ -143,114 +125,116 @@ def build_dynamic_queries() -> list[str]:
     print(f"[search_crawler] Built {len(queries)} dynamic queries from MongoDB")
     return queries
 
+# ─── Browser setup ────────────────────────────────────────────────────────────
 
-# ─── Bing result link extractor ───────────────────────────────────────────────
-
-def extract_bing_links(page) -> list[str]:
+def make_browser_context(playwright):
     """
-    Extract organic result links from a Bing search results page.
-    Bing wraps results in <li class="b_algo"> with an <h2><a href=...>.
-    Falls back to any outbound <a> if the structured selector finds nothing.
+    Launch Chromium with anti-detection settings.
     """
-    urls = []
+    browser = playwright.chromium.launch(
+        headless=True,
+        args=[
+            "--no-sandbox",
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+        ]
+    )
+    context = browser.new_context(
+        user_agent=USER_AGENT,
+        viewport={"width": 1280, "height": 800},
+        locale="en-US",
+        timezone_id="America/New_York",
+        java_script_enabled=True,
+        accept_downloads=False,
+        extra_http_headers={
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        }
+    )
+    context.add_init_script("""
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        Object.defineProperty(navigator, 'plugins',   { get: () => [1, 2, 3] });
+        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+        window.chrome = { runtime: {} };
+    """)
+    return browser, context
 
-    # Primary: structured Bing result links
+# ─── DuckDuckGo search ────────────────────────────────────────────────────────
+
+def search_duckduckgo(query: str, page) -> int:
+    """
+    Use DDG's plain HTML endpoint — no JS, no bot detection, clean result links.
+    Returns the number of new URLs queued.
+    """
+    url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
+    print(f"[search_crawler] DDG: \"{query}\"")
+
     try:
-        anchors = page.query_selector_all("li.b_algo h2 a")
-        for a in anchors:
-            href = a.get_attribute("href")
-            if href and href.startswith("http"):
-                urls.append(href)
+        page.goto(url, timeout=30000, wait_until="domcontentloaded")
+        time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
+    except Exception as e:
+        print(f"[search_crawler] Failed to load DDG results: {e}")
+        return 0
+
+    # Debug: confirm we got a real results page
+    try:
+        print(f"[search_crawler] Page title: '{page.title()}'")
     except Exception:
         pass
 
-    # Fallback: all outbound links on the page
-    if not urls:
+    # DDG html endpoint uses .result__a for organic result links
+    links = []
+    try:
+        for a in page.query_selector_all(".result__a"):
+            href = a.get_attribute("href")
+            if href and href.startswith("http"):
+                links.append(href)
+    except Exception as e:
+        print(f"[search_crawler] Link extraction error: {e}")
+
+    # Fallback: grab all outbound links if structured selector fails
+    if not links:
+        print("[search_crawler] Structured selector found nothing, trying fallback")
         try:
             for a in page.query_selector_all("a[href]"):
                 href = a.get_attribute("href")
-                if href and href.startswith("http") and "bing.com" not in href:
-                    urls.append(href)
+                if href and href.startswith("http") and "duckduckgo.com" not in href:
+                    links.append(href)
         except Exception:
             pass
 
-    return urls
+    print(f"[search_crawler] Extracted {len(links)} raw links")
 
-
-# ─── Search one query on Bing ─────────────────────────────────────────────────
-
-def search_bing(query: str, page) -> int:
-    """
-    Search Bing for `query`, paginate through PAGES_PER_QUERY result pages,
-    and push discovered URLs into the appropriate Redis queue.
-    Returns the number of new URLs queued.
-    """
-    total_queued = 0
-
-    for page_num in range(PAGES_PER_QUERY):
-        # Bing pagination uses `first` param: 1, 11, 21 ...
-        first = page_num * 10 + 1
-        url   = f"https://www.bing.com/search?q={quote_plus(query)}&count=10&first={first}"
-
-        print(f"[search_crawler] Bing p{page_num + 1}: \"{query}\"")
-
+    queued = 0
+    for link in links:
         try:
-            page.goto(url, timeout=30000, wait_until="domcontentloaded")
-            time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
-        except Exception as e:
-            print(f"[search_crawler] Failed to load Bing results: {e}")
-            break
-
-        # Detect CAPTCHA / bot challenge
-        try:
-            body_text = page.inner_text("body")
+            domain = urlparse(link).netloc.lower().replace("www.", "")
         except Exception:
-            body_text = ""
+            continue
 
-        if "captcha" in body_text.lower() or "verify you are a human" in body_text.lower():
-            print("[search_crawler] ⚠ Bing CAPTCHA detected — pausing 60s")
-            time.sleep(60)
-            break
+        if any(skip in domain for skip in SKIP_DOMAINS):
+            continue
+        if is_visited(link):
+            continue
 
-        links = extract_bing_links(page)
+        if is_aggregator_site(link):
+            push_aggregator(link, depth=1)
+        else:
+            push_crawler(link, depth=0)
 
-        if not links:
-            print(f"[search_crawler] No results on page {page_num + 1}, stopping")
-            break
+        queued += 1
 
-        queued_this_page = 0
-        for link in links:
-            try:
-                domain = urlparse(link).netloc.lower().replace("www.", "")
-            except Exception:
-                continue
+    print(f"[search_crawler] Queued {queued} new URLs for \"{query}\"")
+    return queued
 
-            if any(skip in domain for skip in SKIP_DOMAINS):
-                continue
+# ─── Main run ─────────────────────────────────────────────────────────────────
 
-            if is_visited(link):
-                continue
-
-            if is_aggregator_site(link):
-                push_aggregator(link, depth=1)
-            else:
-                push_crawler(link, depth=0)
-
-            queued_this_page += 1
-
-        total_queued += queued_this_page
-        print(f"[search_crawler] Queued {queued_this_page} URLs from page {page_num + 1}")
-
-    return total_queued
-
-
-# Main run
 def run_search_crawler():
     print(f"\n[search_crawler] ── Starting run at {datetime.utcnow().isoformat()} ──")
 
     dynamic_queries = build_dynamic_queries()
 
-    # Merge static + dynamic, deduplicate, static goes first
     seen        = set()
     all_queries = []
     for q in STATIC_QUERIES + dynamic_queries:
@@ -263,14 +247,16 @@ def run_search_crawler():
     total_queued = 0
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(user_agent=USER_AGENT)
-        page    = context.new_page()
+        browser, context = make_browser_context(p)
+        page = context.new_page()
 
         for i, query in enumerate(all_queries):
-            total_queued += search_bing(query, page)
+            total_queued += search_duckduckgo(query, page)
 
-            # Longer cooldown every 10 queries to avoid rate limiting
+            # Polite delay between queries
+            time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
+
+            # Longer cooldown every 10 queries
             if (i + 1) % 10 == 0:
                 pause = random.uniform(5, 10)
                 print(f"[search_crawler] Cooldown: {pause:.1f}s after {i + 1} queries")
@@ -281,10 +267,13 @@ def run_search_crawler():
 
     print(f"\n[search_crawler] ── Run complete ──")
     print(f"[search_crawler] Total URLs queued: {total_queued}")
-    print(f"[search_crawler] Queue stats: {queue_stats()}")
+    try:
+        print(f"[search_crawler] Queue stats: {queue_stats()}")
+    except Exception as e:
+        print(f"[search_crawler] Could not get queue stats: {e}")
 
+# ─── Entry point ──────────────────────────────────────────────────────────────
 
-# Entry point 
 if __name__ == "__main__":
     run_search_crawler()
 

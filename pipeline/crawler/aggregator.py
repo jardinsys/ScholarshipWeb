@@ -112,7 +112,7 @@ def run_aggregator():
                 break
             url, depth = item
             crawl_page(url, depth, page)
-            time.sleep(1)
+            time.sleep(1) # Polite throttle
 
         browser.close()
 
