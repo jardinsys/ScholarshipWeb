@@ -246,7 +246,7 @@ def ensure_seed_tags():
     return list(tag_collection.find({}))
 
 
-def _classify_scholarship(text: str, threshold: float = 0.50) -> bool:
+def _classify_scholarship(text: str, threshold: float = 0.75) -> bool:
     if not text or len(text.strip()) < 100:
         return False
     labels = ["scholarship application", "educational grant application", "not related"]
