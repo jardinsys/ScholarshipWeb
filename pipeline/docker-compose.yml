@@ -16,6 +16,23 @@ services:
     networks:
       - scholarship-net
 
+  search_crawler:
+    build:
+      context: .
+      dockerfile: Dockerfile.crawler
+    container_name: search_crawler
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+      - MONGO_URI=mongodb://mongo:27017/scholarshipdb
+    command: ["python", "crawler/search_crawler.py"]
+    networks:
+      - scholarship-net
+
   worker:
     build:
       context: .
