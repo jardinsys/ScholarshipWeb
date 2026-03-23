@@ -9,14 +9,13 @@ export function UserInfoSection({ user, onUpdate }) {
   const [form, setForm] = useState({
     displayname: user.displayname ?? '',
     username:    user.username    ?? '',
-    bio:         user.bio         ?? '',
   })
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      await updateUser(user.id, form)
+      await updateUser(user._id ?? user.id, form)
       onUpdate(form)
       setEditing(false)
     } catch (err) {
@@ -28,7 +27,6 @@ export function UserInfoSection({ user, onUpdate }) {
 
   return (
     <div className="animate-fade-up space-y-4">
-      {/* Avatar placeholder */}
       <div className="flex items-center gap-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-moss/15 text-2xl font-display font-bold text-moss">
           {(form.displayname?.[0] ?? '?').toUpperCase()}
@@ -44,7 +42,7 @@ export function UserInfoSection({ user, onUpdate }) {
         )}
       </div>
 
-      {editing ? (
+      {editing && (
         <div className="space-y-3 rounded-xl border border-border bg-white p-5 shadow-sm">
           <Field label="Display Name">
             <Input
@@ -60,15 +58,6 @@ export function UserInfoSection({ user, onUpdate }) {
               placeholder="handle"
             />
           </Field>
-          <Field label="Bio">
-            <textarea
-              value={form.bio}
-              onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
-              placeholder="A short bio..."
-              rows={3}
-              className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm font-body shadow-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-            />
-          </Field>
           <div className="flex gap-2 pt-1">
             <Button onClick={handleSave} disabled={saving} size="sm">
               <Check size={13} /> {saving ? 'Saving…' : 'Save'}
@@ -78,10 +67,6 @@ export function UserInfoSection({ user, onUpdate }) {
             </Button>
           </div>
         </div>
-      ) : (
-        form.bio && (
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">{form.bio}</p>
-        )
       )}
     </div>
   )

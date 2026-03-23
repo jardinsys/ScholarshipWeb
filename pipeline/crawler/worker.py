@@ -17,18 +17,14 @@ from pymongo import MongoClient
 
 SLEEP_SECONDS = 10
 
-# ─── MongoDB — use env var so docker-compose overrides work ───────────────────
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://mongo:27017/scholarshipdb")
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/scholarshipdb")
 _db_name  = MONGO_URI.rstrip("/").split("/")[-1] or "scholarshipdb"
 client    = MongoClient(MONGO_URI)
 db        = client[_db_name]
 raw_collection = db["raw_results"]
 
 
-# ─── Link extractor ───────────────────────────────────────────────────────────
-
 def extract_links(page, base_url: str) -> list[str]:
-    """Extract all valid http/https links from the current page."""
     links = page.eval_on_selector_all(
         "a[href]",
         "elements => elements.map(el => el.href)"
@@ -45,13 +41,24 @@ def extract_links(page, base_url: str) -> list[str]:
     return valid
 
 
-# ─── Single page crawl ────────────────────────────────────────────────────────
+def get_provider(page) -> str:
+    """
+    Extract a human-readable org/site name from page metadata.
+    Tries og:site_name first, falls back to empty string
+    (ml_pipeline._extract_provider will derive it from the domain).
+    """
+    try:
+        og_site = page.get_attribute('meta[property="og:site_name"]', 'content')
+        if og_site and og_site.strip():
+            return og_site.strip()
+    except Exception:
+        pass
+    return ""
+
 
 def crawl_page(url: str, depth: int, page):
-    # Strip URL fragments (#section) — they're the same page
     url, _ = urldefrag(url)
 
-    # Skip non-HTML files
     if url.split("?")[0].endswith((".pdf", ".zip", ".docx", ".png", ".jpg", ".jpeg", ".gif", ".svg")):
         print(f"[worker] Skipping non-HTML file: {url}")
         return
@@ -68,11 +75,11 @@ def crawl_page(url: str, depth: int, page):
         print(f"[worker] Failed to load {url}: {e}")
         return
 
-    # Build raw doc and run ML pipeline
     raw_doc = {
         "url":        url,
         "title":      page.title(),
         "text":       page.inner_text("body"),
+        "provider":   get_provider(page),
         "scraped_at": datetime.utcnow().isoformat(),
     }
 
@@ -85,16 +92,13 @@ def crawl_page(url: str, depth: int, page):
     else:
         print(f"[worker] ✗ Not a scholarship: {url}")
 
-    # Extract and sort links
     links       = extract_links(page, url)
     base_domain = urlparse(url).netloc
 
     for link in links:
         if is_visited(link):
             continue
-
         link_domain = urlparse(link).netloc
-
         if is_aggregator_site(link):
             push_aggregator(link, depth + 1)
         elif link_domain == base_domain:
@@ -102,8 +106,6 @@ def crawl_page(url: str, depth: int, page):
         else:
             push_crawler(link, 0)
 
-
-# ─── Main worker loop ─────────────────────────────────────────────────────────
 
 def run_worker():
     print(f"[worker] Starting crawler worker at {datetime.utcnow().isoformat()}")
@@ -114,13 +116,11 @@ def run_worker():
 
         while True:
             item = pop_crawler()
-
             if item is None:
                 stats = queue_stats()
                 print(f"[worker] Queue empty. Waiting {SLEEP_SECONDS}s… Stats: {stats}")
                 time.sleep(SLEEP_SECONDS)
                 continue
-
             url, depth = item
             crawl_page(url, depth, page)
 

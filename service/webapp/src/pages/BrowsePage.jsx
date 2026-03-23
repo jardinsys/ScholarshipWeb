@@ -13,6 +13,14 @@ const FILTER_OPTIONS = [
   { id: 'no_essay', label: 'No Essay Required', icon: FileX },
 ]
 
+function cleanTagValue(value) {
+  if (typeof value !== 'string') return String(value ?? '')
+  return value
+    .replace(/^tag\s+['"](.+)['"]\s*$/i, '$1')
+    .replace(/^['"](.+)['"]\s*$/i, '$1')
+    .trim()
+}
+
 function ScholarshipCard({ s, isSaved, onSave, onUnsave, user }) {
   const [saving, setSaving] = useState(false)
 
@@ -63,7 +71,7 @@ function ScholarshipCard({ s, isSaved, onSave, onUnsave, user }) {
         <div className="flex flex-wrap gap-1.5">
           {s.tags.map((t, i) => (
             <Badge key={i} variant="default" className="text-[10px]">
-              {t.tag_type?.name ?? t.tag_type}: {t.tag_value}
+              {t.tag_type?.name ?? t.tag_type}: {cleanTagValue(t.tag_value)}
             </Badge>
           ))}
           {s.essay_required === false && (

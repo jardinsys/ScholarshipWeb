@@ -161,17 +161,17 @@ router.get('/:id/matches', async (req, res) => {
       .limit(200)
 
     // Score each candidate
-    const maxPossibleScore = userTagTypeIds.length * 3  // 2 type + 1 value per tag
+    const maxPossibleScore = userTagTypeIds.length * 6  // 3 type + 3 value per tag
     const scored = candidates.map(s => {
       let score = 0
       for (const t of s.tags) {
         const typeId = String(t.tag_type?._id ?? t.tag_type)
         if (userTagMap.has(typeId)) {
-          score += 2  // tag type matched
+          score += 3  // tag type matched
           const sValue = String(t.tag_value ?? '').toLowerCase().trim()
           const uValue = userTagMap.get(typeId)
           if (sValue && uValue && sValue === uValue) {
-            score += 1  // exact value match bonus
+            score += 3  // exact value match bonus
           }
         }
       }

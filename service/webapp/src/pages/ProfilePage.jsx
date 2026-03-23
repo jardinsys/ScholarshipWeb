@@ -72,11 +72,13 @@ export default function ProfilePage({ user: authUser }) {
 
       <hr className="border-border" />
 
-      {/* Tags */}
+      {/* Tags + Bio */}
       <TagManager
         userId={user._id ?? user.id}
         tags={user.tags ?? []}
+        bio={user.bio ?? ''}
         onTagsChange={tags => setUser(u => ({ ...u, tags }))}
+        onBioChange={bio => setUser(u => ({ ...u, bio }))}
       />
     </main>
   )

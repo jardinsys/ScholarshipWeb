@@ -230,6 +230,43 @@ def assign_tags(title: str, summary: str, target_count: int = 5) -> list:
 
 # ─── Full pipeline for one raw document ───────────────────────────────────────
 
+def _extract_provider(doc: dict) -> str:
+    """
+    Try to extract the scholarship provider/organization from the page.
+    Checks og:site_name, the domain name, and common page title patterns.
+    """
+    # Try to get from stored metadata if scraper saved it
+    if doc.get("provider"):
+        return doc["provider"]
+
+    # Fall back to domain name, cleaned up
+    url = doc.get("url", "")
+    if url:
+        from urllib.parse import urlparse
+        domain = urlparse(url).netloc.lower()
+        # Strip www. and TLD for a readable name
+        domain = domain.replace("www.", "")
+        parts  = domain.split(".")
+        if parts:
+            return parts[0].replace("-", " ").replace("_", " ").title()
+
+    return ""
+
+
+def _clean_tag_value(value: str) -> str:
+    """
+    Strip model artefacts from generated tag values.
+    e.g. "tag 'hispanic'" → "hispanic"
+         "'3.5'"           → "3.5"
+    """
+    import re
+    value = str(value).strip()
+    # Remove: tag 'value', tag "value", 'value', "value"
+    value = re.sub(r"^tag\s+['\"](.+)['\"]\s*$", r"\1", value, flags=re.IGNORECASE)
+    value = re.sub(r"^['\"](.+)['\"]\s*$", r"\1", value)
+    return value.strip()
+
+
 def process_raw_document(doc: dict) -> dict | None:
     text  = doc.get("text", "")
     title = doc.get("title", "")
@@ -247,24 +284,30 @@ def process_raw_document(doc: dict) -> dict | None:
         print(f"[ml] Summary failed verification, skipping: {doc['url']}")
         return None
 
-    # Step 4: assign tags — pass title explicitly (fixes scoping bug)
+    # Step 4: extract provider
+    provider = _extract_provider(doc)
+
+    # Step 5: assign tags — pass title explicitly
     tags = assign_tags(title=title, summary=summary, target_count=5)
 
-    # Step 5: build cleaned document
-    # Store tags with just the ObjectId reference (not the full tag doc)
+    # Step 6: build cleaned document — store ObjectId refs and clean tag values
     cleaned_tags = []
     for t in tags:
         tag_type = t["tag_type"]
         type_id  = tag_type["_id"] if isinstance(tag_type, dict) else tag_type
-        cleaned_tags.append({"tag_type": type_id, "tag_value": t["tag_value"]})
+        cleaned_tags.append({
+            "tag_type":  type_id,
+            "tag_value": _clean_tag_value(t["tag_value"]),
+        })
 
     cleaned = {
-        "url":     doc["url"],
-        "name":    title,
-        "summary": summary,
-        "tags":    cleaned_tags,
-        "date":    {"found": doc.get("scraped_at")},
-        "raw_id":  doc["_id"],
+        "url":      doc["url"],
+        "name":     title,
+        "provider": provider,
+        "summary":  summary,
+        "tags":     cleaned_tags,
+        "date":     {"found": doc.get("scraped_at")},
+        "raw_id":   doc["_id"],
     }
 
     clean_collection.update_one(
