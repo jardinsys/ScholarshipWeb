@@ -1,3 +1,4 @@
+import os
 import time
 from datetime import datetime
 from urllib.parse import urldefrag, urlparse, urljoin
@@ -13,17 +14,19 @@ from crawler.redis_queue import (
     queue_stats
 )
 from pymongo import MongoClient
-from urllib.parse import urlparse, urljoin, urldefrag
 
-SLEEP_SECONDS = 10  # Wait time when queue is empty before checking again
+SLEEP_SECONDS = 10
 
-# MongoDB setup
-client = MongoClient("mongodb://mongo:27017")
-db = client["scholarshipdb"]
+# ─── MongoDB — use env var so docker-compose overrides work ───────────────────
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://mongo:27017/scholarshipdb")
+_db_name  = MONGO_URI.rstrip("/").split("/")[-1] or "scholarshipdb"
+client    = MongoClient(MONGO_URI)
+db        = client[_db_name]
 raw_collection = db["raw_results"]
 
 
-# Link extractor 
+# ─── Link extractor ───────────────────────────────────────────────────────────
+
 def extract_links(page, base_url: str) -> list[str]:
     """Extract all valid http/https links from the current page."""
     links = page.eval_on_selector_all(
@@ -41,19 +44,21 @@ def extract_links(page, base_url: str) -> list[str]:
             continue
     return valid
 
-# Single page crawl
+
+# ─── Single page crawl ────────────────────────────────────────────────────────
+
 def crawl_page(url: str, depth: int, page):
     # Strip URL fragments (#section) — they're the same page
     url, _ = urldefrag(url)
-    
+
     # Skip non-HTML files
-    if url.endswith((".pdf", ".zip", ".docx", ".png", ".jpg", ".jpeg")):
+    if url.split("?")[0].endswith((".pdf", ".zip", ".docx", ".png", ".jpg", ".jpeg", ".gif", ".svg")):
         print(f"[worker] Skipping non-HTML file: {url}")
         return
 
     if is_visited(url):
         return
-    
+
     print(f"[worker] Crawling ({depth}): {url}")
 
     try:
@@ -65,14 +70,14 @@ def crawl_page(url: str, depth: int, page):
 
     # Build raw doc and run ML pipeline
     raw_doc = {
-        "url": url,
-        "title": page.title(),
-        "text": page.inner_text("body"),
-        "scraped_at": datetime.utcnow().isoformat()
+        "url":        url,
+        "title":      page.title(),
+        "text":       page.inner_text("body"),
+        "scraped_at": datetime.utcnow().isoformat(),
     }
 
-    raw_id = raw_collection.insert_one(raw_doc).inserted_id
-    doc = raw_collection.find_one({"_id": raw_id})
+    raw_id  = raw_collection.insert_one(raw_doc).inserted_id
+    doc     = raw_collection.find_one({"_id": raw_id})
     cleaned = process_raw_document(doc)
 
     if cleaned:
@@ -81,7 +86,7 @@ def crawl_page(url: str, depth: int, page):
         print(f"[worker] ✗ Not a scholarship: {url}")
 
     # Extract and sort links
-    links = extract_links(page, url)
+    links       = extract_links(page, url)
     base_domain = urlparse(url).netloc
 
     for link in links:
@@ -93,27 +98,26 @@ def crawl_page(url: str, depth: int, page):
         if is_aggregator_site(link):
             push_aggregator(link, depth + 1)
         elif link_domain == base_domain:
-            # Same domain as current page — stay in crawler queue
             push_crawler(link, depth + 1)
         else:
-            # External domain — crawler queue at fresh depth
             push_crawler(link, 0)
 
 
-# Main worker loop 
+# ─── Main worker loop ─────────────────────────────────────────────────────────
+
 def run_worker():
     print(f"[worker] Starting crawler worker at {datetime.utcnow().isoformat()}")
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        page    = browser.new_page()
 
         while True:
             item = pop_crawler()
 
             if item is None:
                 stats = queue_stats()
-                print(f"[worker] Queue empty. Waiting {SLEEP_SECONDS}s... Stats: {stats}")
+                print(f"[worker] Queue empty. Waiting {SLEEP_SECONDS}s… Stats: {stats}")
                 time.sleep(SLEEP_SECONDS)
                 continue
 

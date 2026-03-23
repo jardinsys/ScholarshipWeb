@@ -16,7 +16,9 @@ const scholarshipSchema = new mongoose.Schema({
         due: Date,
         found: {type: Date, default: Date.now()}
     },
-    description: String
+    description: String,
+    summary: String,
+    amount: String
 })
 
 const Scholarship = mongoose.model('Scholarship', scholarshipSchema);

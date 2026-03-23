@@ -1,4 +1,14 @@
 services:
+  frontend:
+    build:
+      context: ..
+      dockerfile: service/Dockerfile.frontend
+    container_name: scholarship-frontend
+    ports:
+      - "5173:5173"
+    networks:
+      - scholarship-net
+
   api:
     build:
       context: ..
@@ -7,22 +17,10 @@ services:
     ports:
       - "3001:3001"
     environment:
+      # 'mongo' is the container name from pipeline/docker-compose.yml,
+      # reachable via the shared scholarship-net network
       - MONGO_URI=mongodb://mongo:27017/scholarshipdb
       - PORT=3001
-    networks:
-      - scholarship-net
-    depends_on:
-      - frontend
-
-  frontend:
-    build:
-      context: ..
-      dockerfile: service/Dockerfile.frontend
-    container_name: scholarship-frontend
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://api:3001
     networks:
       - scholarship-net
 

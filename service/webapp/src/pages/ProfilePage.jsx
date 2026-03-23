@@ -1,27 +1,50 @@
 import { useState, useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, LogIn } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { getUser } from '@/lib/api'
 import { UserInfoSection } from '@/components/profile/UserInfoSection'
 import { TagManager } from '@/components/profile/TagManager'
+import { Button } from '@/components/ui/button'
 
-// TODO: replace with real auth/session once you have login
-const MOCK_USER_ID = '1'
-
-export default function ProfilePage() {
-  const [user, setUser]     = useState(null)
+export default function ProfilePage({ user: authUser }) {
+  const [user, setUser]       = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError]   = useState(null)
+  const [error, setError]     = useState(null)
+  const navigate              = useNavigate()
 
   useEffect(() => {
-    getUser(MOCK_USER_ID)
+    // authUser comes from App state after login/register
+    // authUser._id is the MongoDB ObjectId string
+    if (!authUser) {
+      setLoading(false)
+      return
+    }
+
+    const userId = authUser._id ?? authUser.id
+    if (!userId) {
+      setError('Could not determine user ID.')
+      setLoading(false)
+      return
+    }
+
+    getUser(userId)
       .then(res => setUser(res.data))
       .catch(() => setError('Could not load profile.'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [authUser])
 
   if (loading) return (
     <div className="flex h-64 items-center justify-center text-muted-foreground gap-2">
       <Loader2 size={18} className="animate-spin" /> Loading profile…
+    </div>
+  )
+
+  if (!authUser) return (
+    <div className="flex h-64 flex-col items-center justify-center gap-4 text-muted-foreground">
+      <p className="text-sm">You need to be logged in to view your profile.</p>
+      <Button onClick={() => navigate('/dashboard')}>
+        <LogIn size={14} /> Go to Dashboard to Log In
+      </Button>
     </div>
   )
 
@@ -51,7 +74,7 @@ export default function ProfilePage() {
 
       {/* Tags */}
       <TagManager
-        userId={user.id}
+        userId={user._id ?? user.id}
         tags={user.tags ?? []}
         onTagsChange={tags => setUser(u => ({ ...u, tags }))}
       />

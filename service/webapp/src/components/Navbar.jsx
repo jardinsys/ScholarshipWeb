@@ -1,11 +1,7 @@
 import { Link, NavLink } from 'react-router-dom'
-import { BookOpen, User, LayoutDashboard } from 'lucide-react'
+import { BookOpen, LayoutDashboard, User } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/browse',    label: 'Browse',    icon: BookOpen },
-]
 
 export function Navbar({ user, onLogout }) {
   return (
@@ -16,17 +12,47 @@ export function Navbar({ user, onLogout }) {
         </Link>
 
         <div className="flex items-center gap-3">
-          <NavLink to="/browse" className={({ isActive }) =>
-            cn('flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              isActive ? 'bg-moss text-white' : 'text-ink/70 hover:bg-sand-200 hover:text-ink')
-          }>
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                isActive ? 'bg-moss text-white' : 'text-ink/70 hover:bg-sand-200 hover:text-ink'
+              )
+            }
+          >
+            <LayoutDashboard size={14} /> Dashboard
+          </NavLink>
+
+          <NavLink
+            to="/browse"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                isActive ? 'bg-moss text-white' : 'text-ink/70 hover:bg-sand-200 hover:text-ink'
+              )
+            }
+          >
             <BookOpen size={14} /> Browse
           </NavLink>
 
           {user ? (
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm text-muted-foreground">@{user.username}</span>
-              <Button variant="ghost" size="sm" onClick={onLogout}>Log out</Button>
+              <NavLink
+                to="/profile"
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                    isActive ? 'bg-moss text-white' : 'text-ink/70 hover:bg-sand-200 hover:text-ink'
+                  )
+                }
+              >
+                <User size={14} />
+                <span className="font-mono">@{user.username}</span>
+              </NavLink>
+              <Button variant="ghost" size="sm" onClick={onLogout}>
+                Log out
+              </Button>
             </div>
           ) : null}
         </div>
