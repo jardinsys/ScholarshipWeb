@@ -1,6 +1,8 @@
 """
-Test script — manually pushes 2 URLs into Redis and runs the worker
-to verify the full pipeline works end to end.
+Test script to manually pushes 2 URLs into Redis and runs the worker
+to verify the full pipeline works end to end. (preliminary to aggregator + worker)
+
+Not used in Docker anymore
 
 Expected results:
   https://www.servicescape.com/scholarship → detected as scholarship, saved to MongoDB

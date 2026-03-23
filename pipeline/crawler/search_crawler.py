@@ -244,8 +244,7 @@ def search_bing(query: str, page) -> int:
     return total_queued
 
 
-# ─── Main run ─────────────────────────────────────────────────────────────────
-
+# Main run
 def run_search_crawler():
     print(f"\n[search_crawler] ── Starting run at {datetime.utcnow().isoformat()} ──")
 
@@ -285,8 +284,7 @@ def run_search_crawler():
     print(f"[search_crawler] Queue stats: {queue_stats()}")
 
 
-# ─── Entry point ─────────────────────────────────────────────────────────────
-
+# Entry point 
 if __name__ == "__main__":
     run_search_crawler()
 

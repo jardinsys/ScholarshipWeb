@@ -2,8 +2,7 @@ const router = require('express').Router()
 const User = require('../../../data/user/schema/user')
 const Scholarship = require('../../../data/scholarship/schema/scholarship')
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
+// AUTH
 // POST /api/users/register
 router.post('/register', async (req, res) => {
   try {
@@ -41,8 +40,7 @@ router.post('/login', async (req, res) => {
   }
 })
 
-// ─── User profile ──────────────────────────────────────────────────────────────
-
+// USER PROFILES
 // GET /api/users/:id
 router.get('/:id', async (req, res) => {
   try {
@@ -71,8 +69,7 @@ router.put('/:id', async (req, res) => {
   }
 })
 
-// ─── Tags ──────────────────────────────────────────────────────────────────────
-
+// TAGS
 // GET /api/users/:id/tags
 router.get('/:id/tags', async (req, res) => {
   try {
@@ -114,12 +111,11 @@ router.delete('/:id/tags/:tagTypeId', async (req, res) => {
   }
 })
 
-// ─── Recommendations (tag-based matching) ─────────────────────────────────────
-
+// RECCOMENDATIONS
 /**
  * GET /api/users/:id/matches
  *
- * Algorithm:
+ * Algorithm Logic:
  *   1. Load user's tags (tag_type + tag_value pairs).
  *   2. Fetch all scholarships that share at least one tag_type with the user.
  *   3. Score each scholarship:
