@@ -1,12 +1,8 @@
 const mongoose = require("mongoose");
-const Snowflake = require('snowflake-id').default;
-const snowflake = new Snowflake({
-    mid: 1,  // Machine ID
-    offset: 0
-});
+const { randomUUID } = require('crypto');
 
 const userSchema = new mongoose.Schema({
-    id: { type: String, default: () => snowflake.generate(), unique: true},
+    id: { type: String, default: () => randomUUID(), unique: true },
     displayname: String, 
     username: String,
     tags: [{

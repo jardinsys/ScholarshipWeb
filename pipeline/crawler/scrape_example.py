@@ -5,7 +5,7 @@ from ml.ml_pipeline import process_raw_document
 
 # MongoDB setup
 client = MongoClient("mongodb://mongo:27017")
-db = client["scholarship_crawler"]
+db = client["scholarshipdb"]  # shared DB with frontend
 raw_collection = db["raw_results"]
 
 

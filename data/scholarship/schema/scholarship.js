@@ -1,12 +1,8 @@
 const mongoose = require("mongoose");
-const Snowflake = require('snowflake-id').default;
-const snowflake = new Snowflake({
-    mid: 1,  // Machine ID
-    offset: 0
-});
+const { randomUUID } = require('crypto');
 
 const scholarshipSchema = new mongoose.Schema({
-    id: { type: String, default: () => snowflake.generate(), unique: true},
+    id: { type: String, default: () => randomUUID(), unique: true },
     name: String, 
     provider: String, 
     url: String,

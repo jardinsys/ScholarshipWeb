@@ -8,35 +8,21 @@ import { cn } from '@/lib/utils'
 import { getScholarships } from '@/lib/api'
 
 const FILTERS = [
-  { id: 'recommended', label: 'Recommended',       icon: Star },
-  { id: 'top_paying',  label: 'Top Paying',         icon: TrendingUp },
-  { id: 'no_essay',    label: 'Essay Not Required', icon: FileX },
-//  { id: 'recent',      label: 'Recent',             icon: Clock },
+  { id: 'recommended', label: 'Recommended', icon: Star },
+  { id: 'top_paying', label: 'Top Paying', icon: TrendingUp },
+  { id: 'no_essay', label: 'Essay Not Required', icon: FileX },
+  //  { id: 'recent',      label: 'Recent',             icon: Clock },
 ]
 
 const SIDEBAR_ITEMS = [
-  { id: 'feed',    label: 'Web Feed',   icon: Rss },
-  { id: 'saved',   label: 'Saved',      icon: Bookmark },
-  { id: 'tags',    label: 'Tag Search', icon: Tags },
-  { id: 'account', label: 'Account',    icon: User },
+  { id: 'feed', label: 'Web Feed', icon: Rss },
+  { id: 'saved', label: 'Saved', icon: Bookmark },
+  { id: 'tags', label: 'Tag Search', icon: Tags },
+  { id: 'account', label: 'Account', icon: User },
 ]
 
 // Sidebar items that require auth
 const AUTH_REQUIRED = new Set(['saved', 'tags', 'account'])
-
-// inside DashboardPage(), replace MOCK_SCHOLARSHIPS with:
-const [scholarships, setScholarships] = useState([])
-const [loading, setLoading] = useState(true)
-
-useEffect(() => {
-  getScholarships({
-    search:   searchQuery   || undefined,
-    no_essay: activeFilters.has('no_essay') || undefined,
-  })
-    .then(res => setScholarships(res.data.scholarships))
-    .catch(err => console.error(err))
-    .finally(() => setLoading(false))
-}, [searchQuery, activeFilters])
 
 function ScholarshipCard({ s, style, onSave }) {
   return (
@@ -47,28 +33,45 @@ function ScholarshipCard({ s, style, onSave }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="font-display font-semibold text-sm leading-snug group-hover:text-moss transition-colors">
-            {s.name}
+            {s.name || 'Untitled Scholarship'}
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{s.provider}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {s.provider || 'Unknown Provider'}
+          </p>
         </div>
-        <span className="shrink-0 font-mono text-sm font-medium text-amber">{s.amount}</span>
+        {s.amount && (
+          <span className="shrink-0 font-mono text-sm font-medium text-amber">{s.amount}</span>
+        )}
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {s.tags.map(t => (
-          <Badge key={t} variant="default" className="text-[10px]">{t}</Badge>
-        ))}
-        {!s.essay && <Badge variant="amber" className="text-[10px]">No Essay</Badge>}
-        {s.recommended && <Badge variant="outline" className="text-[10px] border-amber/40 text-amber">★ Match</Badge>}
-      </div>
+      {/* Summary if no tags */}
+      {s.tags?.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {s.tags.map((t, i) => (
+            <Badge key={i} variant="default" className="text-[10px]">
+              {t.tag_type?.name ?? t.tag_type}: {t.tag_value}
+            </Badge>
+          ))}
+          {s.essay_required === false && (
+            <Badge variant="amber" className="text-[10px]">No Essay</Badge>
+          )}
+        </div>
+      ) : s.summary ? (
+        <p className="text-xs text-muted-foreground line-clamp-2">{s.summary}</p>
+      ) : null}
 
       <div className="flex items-center justify-between pt-1">
-        <span className="text-xs text-muted-foreground">Due {s.due}</span>
+        <span className="text-xs text-muted-foreground">
+          {s.date?.due ? `Due ${new Date(s.date.due).toLocaleDateString()}` :
+            s.date?.found ? `Found ${new Date(s.date.found).toLocaleDateString()}` : ''}
+        </span>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onSave}>
             Save
           </Button>
-          <Button size="sm" className="h-7 text-xs">Apply →</Button>
+          <Button size="sm" className="h-7 text-xs" onClick={() => window.open(s.url, '_blank')}>
+            Apply →
+          </Button>
         </div>
       </div>
     </article>
@@ -76,13 +79,25 @@ function ScholarshipCard({ s, style, onSave }) {
 }
 
 export default function DashboardPage() {
-  const [activeNav,     setActiveNav]     = useState('feed')
+  const [activeNav, setActiveNav] = useState('feed')
   const [activeFilters, setActiveFilters] = useState(new Set())
-  const [searchQuery,   setSearchQuery]   = useState('')
-  const [modal,         setModal]         = useState({ open: false, reason: 'account' })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [modal, setModal] = useState({ open: false, reason: 'account' })
+  const [scholarships, setScholarships] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getScholarships({
+      search: searchQuery || undefined,
+      no_essay: activeFilters.has('no_essay') || undefined,
+    })
+      .then(res => setScholarships(res.data.scholarships))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false))
+  }, [searchQuery, activeFilters])
 
   const openModal = (reason) => setModal({ open: true, reason })
-  const closeModal = ()      => setModal(m => ({ ...m, open: false }))
+  const closeModal = () => setModal(m => ({ ...m, open: false }))
 
   const handleNavClick = (id) => {
     if (AUTH_REQUIRED.has(id)) {
@@ -98,13 +113,6 @@ export default function DashboardPage() {
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
-
-  const filtered = MOCK_SCHOLARSHIPS.filter(s => {
-    if (activeFilters.has('no_essay')    && s.essay)        return false
-    if (activeFilters.has('recommended') && !s.recommended) return false
-    if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
-    return true
-  })
 
   return (
     <>
@@ -166,14 +174,24 @@ export default function DashboardPage() {
 
           {/* Cards */}
           <div className="space-y-3">
-            {filtered.length === 0 && (
-              <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-                No scholarships match your filters
+            {loading && (
+              <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                Loading scholarships…
               </div>
             )}
-            {scholarships.map((s, i) => (
+            {!loading && scholarships.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-white/50 px-8 py-12 text-center">
+                <span className="text-3xl">🕷️</span>
+                <p className="font-display font-semibold text-ink">No scholarships to show right now</p>
+                <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+                  This prototype includes a live web crawler — it may take some time for scholarships to be discovered, processed, and verified before they appear here. 
+                  If this were the active product, a seperate server web crawling would remain live, while users can log into the system, and many scholarships would already be available to see. 
+                </p>
+              </div>
+            )}
+            {!loading && scholarships.map((s, i) => (
               <ScholarshipCard
-                key={s.id}
+                key={s._id}
                 s={s}
                 style={{ animationDelay: `${i * 60}ms` }}
                 onSave={() => openModal('save')}
@@ -182,6 +200,12 @@ export default function DashboardPage() {
           </div>
         </main>
       </div>
+      {/* AI disclaimer footnote */}
+        <footer className="mx-auto max-w-5xl px-6 py-4 border-t border-border">
+          <p className="text-xs text-muted-foreground text-center leading-relaxed">
+            ⚠️ Scholarships are discovered and classified automatically by AI. Results may not always be accurate.
+          </p>
+        </footer>
     </>
   )
 }

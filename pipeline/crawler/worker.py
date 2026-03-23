@@ -18,7 +18,7 @@ SLEEP_SECONDS = 10  # Wait time when queue is empty before checking again
 
 # MongoDB setup
 client = MongoClient("mongodb://mongo:27017")
-db = client["scholarship_crawler"]
+db = client["scholarshipdb"]
 raw_collection = db["raw_results"]
 
 
