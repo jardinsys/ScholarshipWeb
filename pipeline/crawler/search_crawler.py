@@ -1,15 +1,5 @@
-"""
-search_crawler.py — DuckDuckGo-based active search crawler
+# search_crawler.py — DuckDuckGo-based active search crawler
 
-Searches DDG for scholarship-related queries and feeds discovered URLs
-into the existing worker queue for the ML pipeline to process.
-
-Query sources:
-  1. Static seed queries  — broad terms always worth searching
-  2. Dynamic queries      — built from tag names + values already in MongoDB
-
-Runs once on startup, then every 12 hours.
-"""
 
 import os
 import time
@@ -28,8 +18,7 @@ from crawler.redis_queue import (
     queue_stats,
 )
 
-# ─── MongoDB ──────────────────────────────────────────────────────────────────
-
+# MongoDB
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/scholarshipdb")
 _db_name  = MONGO_URI.rstrip("/").split("/")[-1] or "scholarshipdb"
 client    = MongoClient(MONGO_URI)
@@ -37,8 +26,7 @@ db        = client[_db_name]
 tag_collection         = db["tags"]
 scholarship_collection = db["scholarships"]
 
-# ─── Constants ────────────────────────────────────────────────────────────────
-
+# Constants
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -56,7 +44,7 @@ SKIP_DOMAINS = {
 DELAY_MIN = 1.5
 DELAY_MAX = 3.5
 
-# ─── Static seed queries ──────────────────────────────────────────────────────
+# Static seed queries 
 
 STATIC_QUERIES = [
     "college scholarship application",
@@ -91,8 +79,7 @@ STATIC_QUERIES = [
     "data science scholarship",
 ]
 
-# ─── Dynamic query builder ────────────────────────────────────────────────────
-
+# Dynamic query builder 
 def build_dynamic_queries() -> list[str]:
     queries = []
     seen    = set()
@@ -125,8 +112,7 @@ def build_dynamic_queries() -> list[str]:
     print(f"[search_crawler] Built {len(queries)} dynamic queries from MongoDB")
     return queries
 
-# ─── Browser setup ────────────────────────────────────────────────────────────
-
+# Browser setup
 def make_browser_context(playwright):
     """
     Launch Chromium with anti-detection settings.
@@ -160,8 +146,7 @@ def make_browser_context(playwright):
     """)
     return browser, context
 
-# ─── DuckDuckGo search ────────────────────────────────────────────────────────
-
+# DuckDuckGo search 
 def search_duckduckgo(query: str, page) -> int:
     """
     Use DDG's plain HTML endpoint — no JS, no bot detection, clean result links.
@@ -228,8 +213,7 @@ def search_duckduckgo(query: str, page) -> int:
     print(f"[search_crawler] Queued {queued} new URLs for \"{query}\"")
     return queued
 
-# ─── Main run ─────────────────────────────────────────────────────────────────
-
+# Main run 
 def run_search_crawler():
     print(f"\n[search_crawler] ── Starting run at {datetime.utcnow().isoformat()} ──")
 
@@ -272,8 +256,7 @@ def run_search_crawler():
     except Exception as e:
         print(f"[search_crawler] Could not get queue stats: {e}")
 
-# ─── Entry point ──────────────────────────────────────────────────────────────
-
+# Entry point
 if __name__ == "__main__":
     run_search_crawler()
 
