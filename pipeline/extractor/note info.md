@@ -1,1 +1,0 @@
-This folder will involve the extractors, parsers, and/or pre-done analyzers

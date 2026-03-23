@@ -1,1 +1,0 @@
-This folder is for scripts that may not be api related (like recomendations for users etc)

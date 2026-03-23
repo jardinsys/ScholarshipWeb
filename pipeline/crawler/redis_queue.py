@@ -6,8 +6,7 @@ MAX_DEPTH = 4  # maximum crawl depth from seed URL
 r = redis.Redis(host="redis", port=6379, decode_responses=True)
 
 
-# ─── Aggregator Sites ───────────────────────────────────────────────────────
-
+# Aggregator Sites 
 def add_aggregator_site(url: str):
     """Add a site to the known aggregator set."""
     r.sadd("aggregator:sites", url)
@@ -26,8 +25,7 @@ def is_aggregator_site(url: str) -> bool:
     return False
 
 
-# ─── Queues ──────────────────────────────────────────────────────────────────
-
+# Queues 
 def push_aggregator(url: str, depth: int = 0):
     """Push a URL onto the aggregator queue."""
     if depth > MAX_DEPTH:
@@ -65,8 +63,7 @@ def pop_crawler() -> tuple[str, int] | None:
     return url, int(depth)
 
 
-# ─── Visited URLs ────────────────────────────────────────────────────────────
-
+# Visited URLs 
 def mark_visited(url: str):
     """Mark a URL as visited with a 7 day expiry."""
     r.setex(f"visited:{url}", VISITED_EXPIRY_SECONDS, 1)
@@ -76,8 +73,7 @@ def is_visited(url: str) -> bool:
     return r.exists(f"visited:{url}") == 1
 
 
-# ─── Queue Stats (useful for monitoring) ─────────────────────────────────────
-
+# Queue Stats (monitoring) 
 def queue_stats() -> dict:
     return {
         "aggregator_queue": r.llen("queue:aggregator"),

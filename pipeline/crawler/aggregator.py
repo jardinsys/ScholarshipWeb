@@ -22,8 +22,7 @@ SAME_DOMAIN_DEPTH = 4
 EXTERNAL_DEPTH    = 0
 
 
-# ─── Seed Redis ───────────────────────────────────────────────────────────────
-
+# Seed Redis
 def load_seeds():
     """Load aggregator sites from JSON into Redis on startup."""
     with open(SEEDS_PATH, "r") as f:
@@ -33,8 +32,7 @@ def load_seeds():
     print(f"[aggregator] Loaded {len(sites)} seed sites into Redis.")
 
 
-# ─── Link extractor ───────────────────────────────────────────────────────────
-
+# Link extractor 
 def extract_links(page, base_url: str) -> list[str]:
     """Extract all valid http/https links from the current page."""
     links = page.eval_on_selector_all(
@@ -53,8 +51,7 @@ def extract_links(page, base_url: str) -> list[str]:
     return valid
 
 
-# ─── Single page crawl ────────────────────────────────────────────────────────
-
+# Single page crawl 
 def crawl_page(url: str, depth: int, page):
     """
     Scrape a single aggregator page and sort its links into the correct queues.
@@ -95,8 +92,7 @@ def crawl_page(url: str, depth: int, page):
     print(f"[aggregator] Found {same_domain} same-domain, {external} external links on {url}")
 
 
-# ─── Main aggregator run ──────────────────────────────────────────────────────
-
+# Main aggregator run 
 def run_aggregator():
     print(f"\n[aggregator] Starting run at {datetime.utcnow().isoformat()}")
 
@@ -123,8 +119,7 @@ def run_aggregator():
     print(f"[aggregator] Run complete. Stats: {queue_stats()}")
 
 
-# ─── Scheduler ────────────────────────────────────────────────────────────────
-
+# Scheduler 
 if __name__ == "__main__":
     load_seeds()
     run_aggregator()

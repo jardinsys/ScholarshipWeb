@@ -1,3 +1,5 @@
+"""This file is not being used anymore by docker, and was an inital test to for scraping data"""
+
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 from pymongo import MongoClient
@@ -5,7 +7,7 @@ from ml.ml_pipeline import process_raw_document
 
 # MongoDB setup
 client = MongoClient("mongodb://mongo:27017")
-db = client["scholarshipdb"]  # shared DB with frontend
+db = client["scholarshipdb"] 
 raw_collection = db["raw_results"]
 
 
@@ -19,7 +21,7 @@ def scrape_page(url: str) -> dict:
 
         # Core fields we always want
         data = {
-            "url": url,                      # ← always save the URL
+            "url": url,
             "title": page.title(),           # page title
             "text": page.inner_text("body"), # full visible text
             "scraped_at": datetime.utcnow().isoformat(),
